@@ -11,7 +11,6 @@ from sklearn.model_selection import train_test_split
 
 def preprocess(X_train, X_val, output_dir):
     scaler = StandardScaler()
-    scaler.fit(np.vstack(X_train).flatten())
     pass
 
 
