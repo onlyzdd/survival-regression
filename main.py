@@ -27,31 +27,31 @@ def parse_args():
     return parser.parse_args()
 
 
-def train(dataloader, model, epoch, args, criterion, optimizer, device):
+def train(dataloader, n, model, epoch, args, criterion, optimizer, device):
     print('Training epoch', epoch, '...')
     model.train()
     running_loss = 0
-    n = len(dataloader)
     for _, (data, score) in enumerate(tqdm(dataloader)):
         data, score = data.to(device), score.to(device)
         output = model(data)
+        output = torch.clamp(output, 0, 1)
         loss = criterion(output, score)
-        running_loss += loss.item() * len(score)
+        running_loss += loss.item()
         loss.backward()
         optimizer.step()
     print('MSELoss: %.4f' % (running_loss / n))
 
 
-def evaluate(dataloader, model, args, criterion, device):
+def evaluate(dataloader, n, model, args, criterion, device):
     print('Validating...')
     model.eval()
     running_loss = 0
-    n = len(dataloader)
     for _, (data, score) in enumerate(tqdm(dataloader)):
         data, score = data.to(device), score.to(device)
-        output = model(data)
+        output = model(data) # torch.clamp to ensure between 0 and 1
+        output = torch.clamp(output, 0, 1)
         loss = criterion(output, score)
-        running_loss += loss.item() * len(score)
+        running_loss += loss.item()
     print('MSELoss: %.4f' % (running_loss / n))
     if args.phase == 'train' and running_loss < args.best_metric:
         args.best_metric = running_loss
@@ -71,7 +71,7 @@ if __name__ == "__main__":
     else:
         device = 'cpu'
     model = LSTM(input_size=6, hidden_size=256, output_size=1).to(device)
-    criterion = nn.MSELoss()
+    criterion = nn.MSELoss(reduction='sum')
     optimizer = torch.optim.SGD(model.parameters(), lr=args.lr)
     if args.phase == 'train':
         train_dataset = DiskDataset(data_dir, train_score_file)
@@ -79,10 +79,10 @@ if __name__ == "__main__":
         train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, pin_memory=True, num_workers=args.num_workers)
         val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, pin_memory=True, num_workers=args.num_workers)
         for epoch in range(args.epochs):
-            train(train_loader, model, epoch, args, criterion, optimizer, device)
-            evaluate(val_loader, model, args, criterion, device)
+            train(train_loader, len(train_dataset), model, epoch, args, criterion, optimizer, device)
+            evaluate(val_loader, len(val_dataset), model, args, criterion, device)
     else:
         model.load_state_dict(torch.load(args.model_path))
         test_dataset = DiskDataset(data_dir, test_score_file)
         test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, pin_memory=True, num_workers=args.num_workers)
-        evaluate(test_loader, model, args, criterion, device)
+        evaluate(test_loader, len(test_dataset), model, args, criterion, device)

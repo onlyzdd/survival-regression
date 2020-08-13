@@ -21,4 +21,4 @@ class DiskDataset(Dataset):
         sampleid = self.sampleids[index]
         # TODO Please make sure the inputs are preprocessed, i.e. missing data imputation, data scaling, padding and cropping
         df = pd.read_csv(os.path.join(self.data_dir, sampleid), header=None)[1:]
-        return torch.randn((5, 6)), torch.randn(1) # data, label
+        return torch.rand((5, 6)), torch.rand(1) # data, label
