@@ -1,5 +1,7 @@
 import argparse
 import os
+
+import numpy as np
 import torch
 from torch import optim
 import torch.nn as nn
@@ -12,8 +14,8 @@ from net import LSTM
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data-dir', type=str, default='tmp_data', help='Directory for data dir')
-    parser.add_argument('--score-file', type=str, default='train_target.txt', help='Path to score file')
+    parser.add_argument('--data-dir', type=str, default='data', help='Directory for data dir')
+    parser.add_argument('--input-size', type=int, default=80, help='Number of features to use')
 
     parser.add_argument('--phase', type=str, default='train', help='Phase: train or test')
     parser.add_argument('--model', type=str, default='lstm', help='Model: lstm')
@@ -34,7 +36,6 @@ def train(dataloader, n, model, epoch, args, criterion, optimizer, device):
     for _, (data, score) in enumerate(tqdm(dataloader)):
         data, score = data.to(device), score.to(device)
         output = model(data)
-        output = torch.clamp(output, 0, 1)
         loss = criterion(output, score)
         running_loss += loss.item()
         loss.backward()
@@ -53,6 +54,7 @@ def evaluate(dataloader, n, model, args, criterion, device):
         loss = criterion(output, score)
         running_loss += loss.item()
     print('MSELoss: %.4f' % (running_loss / n))
+    print()
     if args.phase == 'train' and running_loss < args.best_metric:
         args.best_metric = running_loss
         torch.save(model.state_dict(), args.model_path)
@@ -61,16 +63,16 @@ def evaluate(dataloader, n, model, args, criterion, device):
 if __name__ == "__main__":
     args = parse_args()
     args.best_metric = float('inf')
-    data_dir =  args.data_dir
-    train_score_file = args.score_file
-    val_score_file = args.score_file
-    test_score_file = args.score_file
+    data_dir = args.data_dir
+    train_score_file = os.path.join(data_dir, 'train.json')
+    val_score_file = os.path.join(data_dir, 'val.json')
+    test_score_file = os.path.join(data_dir, 'test.json')
     args.model_path = os.path.join(args.model_path, '%s.pth' % args.model)
     if args.use_gpu and torch.cuda.is_available():
         device = torch.device('cuda:0')
     else:
         device = 'cpu'
-    model = LSTM(input_size=6, hidden_size=256, output_size=1).to(device)
+    model = LSTM(input_size=args.input_size, hidden_size=256, output_size=1).to(device)
     criterion = nn.MSELoss(reduction='sum')
     optimizer = torch.optim.SGD(model.parameters(), lr=args.lr)
     if args.phase == 'train':
