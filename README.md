@@ -21,6 +21,7 @@ Deep learning for survival analysis using PyTorch.
 ## Run
 
 ```
+$ python preprocess.py # run preprocessing
 $ python main.py --help # show help info
 $ python main.py # run code
 ```
