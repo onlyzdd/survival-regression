@@ -38,6 +38,7 @@ def train(dataloader, n, model, epoch, args, criterion, optimizer, device):
         output = model(data)
         loss = criterion(output, score)
         running_loss += loss.item()
+        optimizer.zero_grad()
         loss.backward()
         optimizer.step()
     print('MSELoss: %.4f' % (running_loss / n))
